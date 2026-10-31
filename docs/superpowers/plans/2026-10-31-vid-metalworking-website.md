@@ -73,6 +73,7 @@ In the running app, verify `shows_missing_bot_configuration_without_opening_tele
 ### Task 2: Add the Industrial Visual System and Responsive Page Polish
 
 **Files:**
+- Modify: `src/App.jsx`
 - Modify: `src/index.css`
 - Modify: `index.html`
 - Modify: `README.md`
@@ -81,20 +82,20 @@ In the running app, verify `shows_missing_bot_configuration_without_opening_tele
 - Consumes: `#top`, `#services`, `#production`, and `#contact` anchors and the form in `src/App.jsx`.
 - Produces: responsive industrial styling, ООО «ВиД» metadata, and accurate setup/Telegram documentation.
 
-- [ ] **Step 1: Implement the steel-and-orange visual system**
+- [x] **Step 1: Implement the steel-and-orange visual system**
 
 Replace studio palette and styling in `src/index.css` with dark graphite / steel surfaces, warm orange accents, clear hover and focus states, and mobile layouts. Style the hero illustration with original CSS/inline-SVG-like geometric metal and chimney elements; do not use unrelated office imagery. Keep the primary text CTA obvious and style a separate chimney-motif button with a descriptive accessible label that scrolls to the product directions.
 
-- [ ] **Step 2: Update page metadata and README**
+- [x] **Step 2: Update page metadata and README**
 
 Update the Russian document title, description, and theme color in `index.html` for ООО «ВиД», metalworking, ventilation, chimneys, and Saratov. Update `README.md` to identify the project as the ООО «ВиД» website and retain accurate Vite and Telegram bot setup instructions.
 
-- [ ] **Step 3: Run production build**
+- [x] **Step 3: Run production build**
 
 Run: `npm run build`
 
 Expected: Vite completes and produces the production bundle without errors.
 
-- [ ] **Step 4: Verify navigation, mobile layout, and keyboard accessibility**
+- [x] **Step 4: Verify navigation, mobile layout, and keyboard accessibility**
 
-Open the Vite app in the browser. At desktop width, verify all navigation and CTA anchors reach the intended sections. At a 320px-wide mobile viewport, verify the mobile menu opens/closes, all controls remain visible, and the page has no horizontal overflow (`mobile_layout_has_no_overflow`). Use keyboard-only navigation to confirm visible focus and that the chimney CTA and form can be operated (`keyboard_focus_is_visible`). Enable reduced motion and verify decorative transitions/scroll behavior are reduced (`reduced_motion_is_respected`).
+Open the Vite app in the browser. At desktop width, verify all navigation and CTA anchors reach the intended sections. At a 320px-wide mobile viewport, verify the mobile menu opens/closes, all controls remain visible, and the page has no horizontal overflow (`mobile_layout_has_no_overflow`). Use keyboard-only navigation to confirm visible focus, that opening the mobile menu places focus next on its first link, and that the chimney CTA and form can be operated (`keyboard_focus_is_visible`). Enable reduced motion and verify decorative transitions/scroll behavior are reduced (`reduced_motion_is_respected`).
