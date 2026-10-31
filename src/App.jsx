@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowRight, ArrowUpRight, Layers, Menu, Wind, X } from 'lucide-react'
 import { buildTelegramMessage } from './contact-message.js'
-import { homepageCopy, otherProducts, primaryServices, productionProcesses } from './site-content.js'
+import { companyContacts, companyDetails, homepageCopy, otherProducts, primaryServices, productionProcesses } from './site-content.js'
 
 function ChimneyMark() {
   return (
@@ -147,6 +147,7 @@ function App() {
         <nav id="site-navigation" className={menuOpen ? 'main-nav is-open' : 'main-nav'} aria-label="Основная навигация">
           <a href="#services" onClick={closeMenu}>Дымоходы и вентиляция</a>
           <a href="#production" onClick={closeMenu}>Производство</a>
+          <a href="#about" onClick={closeMenu}>О компании</a>
           <a className="nav-cta" href="#contact" onClick={closeMenu}>Обсудить заказ <ArrowUpRight size={15} /></a>
         </nav>
         <a className="header-cta" href="#contact">Задать вопрос <ArrowUpRight size={15} /></a>
@@ -245,12 +246,55 @@ function App() {
           </div>
         </section>
 
+        <section className="company-about section-pad" id="about" aria-labelledby="about-title">
+          <div className="section-heading">
+            <div>
+              <p className="section-label">{homepageCopy.aboutLabel}</p>
+              <h2 id="about-title">{homepageCopy.aboutTitle}</h2>
+            </div>
+            <p className="section-aside">{homepageCopy.aboutDescription}</p>
+          </div>
+          <dl className="company-facts">
+            <div>
+              <dt>Полное наименование</dt>
+              <dd>{companyDetails.legalName}</dd>
+            </div>
+            <div>
+              <dt>Дата регистрации</dt>
+              <dd>{companyDetails.registrationDate}</dd>
+            </div>
+            <div>
+              <dt>ИНН</dt>
+              <dd>{companyDetails.inn}</dd>
+            </div>
+            <div>
+              <dt>ОГРН</dt>
+              <dd>{companyDetails.ogrn}</dd>
+            </div>
+            <div className="company-fact-wide">
+              <dt>Основной вид деятельности по реестру</dt>
+              <dd>{companyDetails.primaryActivity}</dd>
+            </div>
+            <div className="company-fact-wide">
+              <dt>Юридический адрес</dt>
+              <dd>{companyDetails.legalAddress}</dd>
+            </div>
+          </dl>
+        </section>
+
         <section className="contact section-pad" id="contact" aria-labelledby="contact-title">
           <div className="contact-copy">
             <p className="section-label">{homepageCopy.contactLabel}</p>
             <h2 id="contact-title">{homepageCopy.contactTitle}</h2>
             <p>{homepageCopy.contactDescription}</p>
             <div className="contact-detail"><span className="contact-dot" /> {homepageCopy.contactDetail}</div>
+            {(companyContacts.phone || companyContacts.email || companyContacts.website) && (
+              <div className="company-contact-links" aria-label="Другие способы связи">
+                {companyContacts.phone && <a href={`tel:${companyContacts.phone}`}>{companyContacts.phone}</a>}
+                {companyContacts.email && <a href={`mailto:${companyContacts.email}`}>{companyContacts.email}</a>}
+                {companyContacts.website && <a href={companyContacts.website}>{companyContacts.website}</a>}
+              </div>
+            )}
           </div>
           <form className="contact-form" onSubmit={handleSubmit}>
             <label>

@@ -16,12 +16,31 @@ export const homepageCopy = {
   productionLabel: '03 / Производство',
   productionTitle: 'Режем, гнём, свариваем и вальцуем',
   productionDescription: 'В производстве используем лазерный станок, гибочное оборудование, аргоновую сварку, вальцовочные станки и другое оборудование.',
-  contactLabel: '04 / Обсудим заказ',
+  aboutLabel: '04 / О компании',
+  aboutTitle: 'ООО «ВиД»',
+  aboutDescription: 'Юридические сведения из открытых данных реестра. Адрес указан как юридический и не подтверждён как место приёма клиентов.',
+  contactLabel: '05 / Обсудим заказ',
   contactTitle: 'Что нужно изготовить?',
   contactDescription: 'Опишите задачу в форме. Откроется Telegram с подготовленным сообщением — проверьте его и подтвердите отправку.',
   contactDetail: 'Заявка через Telegram',
   contactSubmit: 'Подготовить сообщение',
   footerDescription: 'Дымоходы · вентиляция · изделия из металла',
+}
+
+export const companyDetails = {
+  shortName: 'ООО «ВИД»',
+  legalName: 'Общество с ограниченной ответственностью «Вентиляция и дымоходы»',
+  inn: '6451021251',
+  ogrn: '1226400012035',
+  registrationDate: '05.10.2022',
+  primaryActivity: 'Производство строительных металлических конструкций, изделий и их частей',
+  legalAddress: '410022, Саратовская область, г. Саратов, пл. Советско-Чехословацкой Дружбы, д. 5',
+}
+
+export const companyContacts = {
+  phone: '',
+  email: '',
+  website: '',
 }
 
 export const productionProcesses = [
