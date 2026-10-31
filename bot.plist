@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>ru.vid64.bot</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/REPLACE_WITH_USER/REPLACE_WITH_PROJECT_PATH/.venv/bin/python</string>
+		<string>/Users/REPLACE_WITH_USER/REPLACE_WITH_PROJECT_PATH/bot/bot.py</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/REPLACE_WITH_USER/REPLACE_WITH_PROJECT_PATH</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>5</integer>
+	<key>StandardOutPath</key>
+	<string>/Users/REPLACE_WITH_USER/Library/Logs/vid-bot.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/REPLACE_WITH_USER/Library/Logs/vid-bot-error.log</string>
+</dict>
+</plist>

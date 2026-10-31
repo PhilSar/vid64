@@ -54,6 +54,48 @@ Google больше не предоставляет Imagen 3 через Gemini A
 4. Отправьте боту `/id` из Telegram-чата, куда должны поступать заявки. Добавьте полученный ID как `TELEGRAM_ADMIN_CHAT_ID` в корневой `.env` и перезапустите бота.
 5. Для локальной разработки запускайте сайт через `npm run dev`: Vite автоматически проксирует запросы `/api/` на `127.0.0.1:8080`.
 
-Форма отправляет поля на `POST /api/order` на том же домене и показывает «Спасибо, заявка принята!» только после подтверждения отправки в Telegram. API принимает не более пяти корректных заявок с одного IP за десять минут. Для production веб-сервер домена `https://vid64.ru` должен проксировать путь `/api/` на `http://127.0.0.1:8080`, перезаписывать `X-Real-IP` реальным IP посетителя и обслуживать сайт по HTTPS. Порт 8080 должен оставаться доступен только локальному reverse proxy; конфигурации production-веб-сервера в этом репозитории нет.
+Каждая корректная заявка сначала синхронно сохраняется в корневой `leads.csv` с правами `0600`, затем отправляется в Telegram. Файл содержит персональные данные: ограничьте доступ к нему и резервным копиям. Одна копия бота должна обслуживать один `leads.csv`; параллельный запуск нескольких процессов с общим файлом не поддерживается. Автоматической повторной отправки накопленных заявок нет.
+
+Форма отправляет поля на `POST /api/order` на том же домене. Сообщение «Спасибо, заявка принята!» отображается после подтверждения доставки в Telegram. Если Telegram недоступен, но запись на диск прошла, API возвращает HTTP 202, а форма сообщает «Заявка сохранена, но уведомление менеджеру задерживается.» и не предлагает отправить дубликат. При ошибке сохранения API возвращает ошибку, а отправка в Telegram не выполняется. API принимает не более пяти корректных заявок с одного IP за десять минут. Для production веб-сервер домена `https://vid64.ru` должен проксировать путь `/api/` на `http://127.0.0.1:8080`, перезаписывать `X-Real-IP` реальным IP посетителя и обслуживать сайт по HTTPS. Порт 8080 должен оставаться доступен только локальному reverse proxy; конфигурации production-веб-сервера в этом репозитории нет.
 
 Чтобы ответить клиенту, ответьте в Telegram непосредственно на пересланное сообщение клиента.
+
+### Linux: systemd
+
+Шаблон [`bot.service`](./bot.service) запускает бота от отдельного непривилегированного пользователя. Сначала установите проект и создайте `.venv` в `/opt/<project>`; создайте `.env` с `TELEGRAM_BOT_TOKEN` и `TELEGRAM_ADMIN_CHAT_ID`, доступный этому пользователю. Не помещайте секреты в unit-файл.
+
+Скопируйте шаблон в systemd и замените `REPLACE_WITH_SERVICE_USER` на пользователя службы, а `REPLACE_WITH_PROJECT_PATH` — на имя каталога проекта внутри `/opt` (например, `vid64`):
+
+```sh
+sudo install -o root -g root -m 0644 bot.service /etc/systemd/system/vid64-bot.service
+sudoedit /etc/systemd/system/vid64-bot.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now vid64-bot.service
+sudo systemctl status vid64-bot.service
+sudo journalctl -u vid64-bot.service -f
+```
+
+Для остановки и отключения автозапуска:
+
+```sh
+sudo systemctl disable --now vid64-bot.service
+```
+
+### macOS: LaunchAgent
+
+Шаблон [`bot.plist`](./bot.plist) предназначен для запуска при входе пользователя. `.env` загружается самим `bot.py` из корня проекта; поместите его рядом с `bot/` и ограничьте права чтения владельцем. До загрузки замените `REPLACE_WITH_USER` своим именем пользователя, а `REPLACE_WITH_PROJECT_PATH` — относительным путём проекта внутри домашней папки. В шаблоне нет токена или других секретов.
+
+```sh
+mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+cp bot.plist "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
+open -e "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
+launchctl kickstart -k "gui/$(id -u)/ru.vid64.bot"
+tail -f "$HOME/Library/Logs/vid-bot.log"
+```
+
+Чтобы остановить службу и убрать её из автозапуска:
+
+```sh
+launchctl bootout "gui/$(id -u)/ru.vid64.bot"
+```
