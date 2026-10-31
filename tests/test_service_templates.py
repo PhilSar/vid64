@@ -7,6 +7,49 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ServiceTemplateTests(unittest.TestCase):
+    def test_nginx_site_serves_the_app_and_proxies_api_without_stale_shell_cache(self):
+        nginx_path = ROOT / "nginx.conf"
+        self.assertTrue(nginx_path.is_file(), "nginx.conf must exist")
+        nginx = nginx_path.read_text(encoding="utf-8")
+
+        self.assertIn("server_name vid64.ru;", nginx)
+        self.assertIn("root /opt/vid64/dist;", nginx)
+        self.assertIn("try_files $uri $uri/ /index.html;", nginx)
+        self.assertIn("gzip on;", nginx)
+
+        assets = nginx.split("location ^~ /assets/", 1)[1].split("}", 1)[0]
+        self.assertIn("immutable", assets)
+
+        index_html = nginx.split("location = /index.html", 1)[1].split("}", 1)[0]
+        self.assertRegex(index_html, r"no-cache|no-store")
+        self.assertNotIn("immutable", index_html)
+
+        api = nginx.split("location /api/", 1)[1].split("}", 1)[0]
+        self.assertIn("proxy_pass http://127.0.0.1:8080;", api)
+        self.assertIn("proxy_set_header X-Real-IP $remote_addr;", api)
+        self.assertIn(
+            "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
+            api,
+        )
+        self.assertIn("proxy_set_header X-Forwarded-Proto $scheme;", api)
+
+    def test_production_systemd_unit_runs_the_bot_with_always_restart(self):
+        service_path = ROOT / "vid-bot.service"
+        self.assertTrue(service_path.is_file(), "vid-bot.service must exist")
+        service = service_path.read_text(encoding="utf-8")
+
+        for directive in (
+            "User=vidbot",
+            "Group=vidbot",
+            "WorkingDirectory=/opt/vid64",
+            "EnvironmentFile=/opt/vid64/.env",
+            "ExecStart=/opt/vid64/.venv/bin/python /opt/vid64/bot/bot.py",
+            "Restart=always",
+            "RestartSec=5s",
+        ):
+            with self.subTest(directive=directive):
+                self.assertIn(directive, service)
+
     def test_readme_covers_lead_file_access_and_persistent_service_disable(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
