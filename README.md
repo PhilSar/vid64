@@ -66,6 +66,22 @@ Google больше не предоставляет Imagen 3 через Gemini A
 
 Скопируйте шаблон в systemd и замените `REPLACE_WITH_SERVICE_USER` на пользователя службы, а `REPLACE_WITH_PROJECT_PATH` — на имя каталога проекта внутри `/opt` (например, `vid64`):
 
+Бот хранит заявки в `leads.csv` в корне проекта. До запуска службы убедитесь, что пользователь службы может создать этот файл. Если каталог проекта принадлежит другому пользователю, установите ACL (пакет `acl`, если команды `setfacl` ещё нет) и sticky bit, чтобы разрешить создание файла, не давая службе удалять чужие файлы:
+
+```sh
+sudo setfacl -m u:REPLACE_WITH_SERVICE_USER:rwx /opt/REPLACE_WITH_PROJECT_PATH
+sudo chmod +t /opt/REPLACE_WITH_PROJECT_PATH
+```
+
+Если `leads.csv` уже существует, передайте его пользователю службы и оставьте доступ только владельцу:
+
+```sh
+sudo chown REPLACE_WITH_SERVICE_USER:REPLACE_WITH_SERVICE_USER /opt/REPLACE_WITH_PROJECT_PATH/leads.csv
+sudo chmod 0600 /opt/REPLACE_WITH_PROJECT_PATH/leads.csv
+```
+
+Замените заполнители в командах на те же значения, что и в unit-файле.
+
 ```sh
 sudo install -o root -g root -m 0644 bot.service /etc/systemd/system/vid64-bot.service
 sudoedit /etc/systemd/system/vid64-bot.service
@@ -94,8 +110,16 @@ launchctl kickstart -k "gui/$(id -u)/ru.vid64.bot"
 tail -f "$HOME/Library/Logs/vid-bot.log"
 ```
 
-Чтобы остановить службу и убрать её из автозапуска:
+Чтобы остановить службу и отключить её автозапуск, выполните обе команды. Отключение сохраняется между входами в систему, пока службу явно не включат снова:
 
 ```sh
+launchctl disable "gui/$(id -u)/ru.vid64.bot"
 launchctl bootout "gui/$(id -u)/ru.vid64.bot"
+```
+
+Чтобы снова включить автозапуск и запустить бота в текущем сеансе:
+
+```sh
+launchctl enable "gui/$(id -u)/ru.vid64.bot"
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
 ```

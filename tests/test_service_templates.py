@@ -7,6 +7,23 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ServiceTemplateTests(unittest.TestCase):
+    def test_readme_covers_lead_file_access_and_persistent_service_disable(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "sudo setfacl -m u:REPLACE_WITH_SERVICE_USER:rwx "
+            "/opt/REPLACE_WITH_PROJECT_PATH",
+            readme,
+        )
+        self.assertIn(
+            'launchctl disable "gui/$(id -u)/ru.vid64.bot"',
+            readme,
+        )
+        self.assertIn(
+            'launchctl enable "gui/$(id -u)/ru.vid64.bot"',
+            readme,
+        )
+
     def test_launch_agent_template_launches_project_bot_without_credentials(self):
         plist_path = ROOT / "bot.plist"
         self.assertTrue(plist_path.is_file(), "bot.plist template must exist")

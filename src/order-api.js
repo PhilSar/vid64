@@ -3,12 +3,12 @@ const ORDER_DELIVERY_DELAYED = 'Заявка сохранена, но уведо
 
 export function getOrderStatusMessage(result) {
   if (result?.telegram_delivered === false) {
-    return typeof result.message === 'string' && result.message.trim()
-      ? result.message
-      : ORDER_DELIVERY_DELAYED
+    return ORDER_DELIVERY_DELAYED
   }
 
-  return 'Спасибо, заявка принята!'
+  return result?.telegram_delivered === true
+    ? 'Спасибо, заявка принята!'
+    : ORDER_ERROR
 }
 
 export async function submitOrder(values, fetchImpl = fetch) {
@@ -34,7 +34,14 @@ export async function submitOrder(values, fetchImpl = fetch) {
     throw new Error(ORDER_ERROR)
   }
 
-  if (result?.ok !== true) {
+  const isDeliveredResponse =
+    response.status === 200 && result?.telegram_delivered === true
+  const isDelayedResponse =
+    response.status === 202 &&
+    result?.telegram_delivered === false &&
+    result.message === ORDER_DELIVERY_DELAYED
+
+  if (result?.ok !== true || (!isDeliveredResponse && !isDelayedResponse)) {
     throw new Error(ORDER_ERROR)
   }
 

@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 import stat
 import tempfile
 import unittest
@@ -62,7 +63,10 @@ class OrderApiTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.post("/api/order", json=VALID_ORDER)
 
         self.assertEqual(response.status, 200)
-        self.assertEqual(await response.json(), {"ok": True})
+        self.assertEqual(
+            await response.json(),
+            {"ok": True, "telegram_delivered": True},
+        )
         self.assertEqual(len(self.bot.messages), 1)
         chat_id, message, parse_mode = self.bot.messages[0]
         self.assertEqual(chat_id, "-1001234567890")
@@ -89,6 +93,22 @@ class OrderApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("<b>Направление:</b> Изделия на заказ", message)
         self.assertIn("<b>Комментарий:</b> Нержавейка + гибка", message)
         self.assertRegex(message, r"\d{2}\.\d{2}\.\d{4} \d{2}:\d{2} МСК")
+
+    async def test_new_leads_file_directory_entry_is_synchronized(self):
+        actual_fsync = os.fsync
+        synchronized_directory = False
+
+        def record_fsync(descriptor):
+            nonlocal synchronized_directory
+            if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+                synchronized_directory = True
+            return actual_fsync(descriptor)
+
+        with patch("bot.bot.os.fsync", side_effect=record_fsync):
+            response = await self.client.post("/api/order", json=VALID_ORDER)
+
+        self.assertEqual(response.status, 200)
+        self.assertTrue(synchronized_directory)
 
     async def test_user_supplied_html_is_escaped_in_telegram_message(self):
         order = VALID_ORDER | {
@@ -139,6 +159,7 @@ class OrderApiTests(unittest.IsolatedAsyncioTestCase):
             "+7 900 123-45-67",
             "+7 (900) 123-45-6",
             "+7 (900) 123-45-678",
+            "+7 (٩٠٠) ١٢٣-٤٥-٦٧",
         ):
             with self.subTest(contact=contact):
                 response = await self.client.post(

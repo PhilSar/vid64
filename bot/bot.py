@@ -22,7 +22,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 LEADS_PATH = Path(__file__).resolve().parents[1] / "leads.csv"
 MOSCOW_TIMEZONE = ZoneInfo("Europe/Moscow")
-RUSSIAN_PHONE_PATTERN = re.compile(r"\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}")
+RUSSIAN_PHONE_PATTERN = re.compile(r"\+7 \([0-9]{3}\) [0-9]{3}-[0-9]{2}-[0-9]{2}")
 LEAD_SAVE_ERROR = {"error": "Could not save order"}
 TELEGRAM_DELIVERY_DELAYED = {
     "ok": True,
@@ -99,11 +99,17 @@ def _append_lead(order: dict[str, str], received_at: datetime | None = None) -> 
         received_at = received_at.replace(tzinfo=MOSCOW_TIMEZONE)
     received_at = received_at.astimezone(MOSCOW_TIMEZONE)
 
-    descriptor = os.open(
-        LEADS_PATH,
-        os.O_APPEND | os.O_CREAT | os.O_WRONLY,
-        0o600,
-    )
+    try:
+        descriptor = os.open(
+            LEADS_PATH,
+            os.O_APPEND | os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            0o600,
+        )
+        created = True
+    except FileExistsError:
+        descriptor = os.open(LEADS_PATH, os.O_APPEND | os.O_WRONLY)
+        created = False
+
     try:
         os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "a", encoding="utf-8", newline="") as leads_file:
@@ -131,6 +137,16 @@ def _append_lead(order: dict[str, str], received_at: datetime | None = None) -> 
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+    if created:
+        directory_descriptor = os.open(
+            LEADS_PATH.parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+        )
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
 
 
 def _format_order_message(
@@ -215,7 +231,7 @@ async def handle_order(request: web.Request) -> web.Response:
             status=202,
         )
 
-    return web.json_response({"ok": True})
+    return web.json_response({"ok": True, "telegram_delivered": True})
 
 
 async def start_order_api(application: Application) -> None:
