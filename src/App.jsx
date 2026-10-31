@@ -1,34 +1,7 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowRight, ArrowUpRight, Layers, Menu, Wind, X } from 'lucide-react'
 import { buildTelegramMessage } from './contact-message.js'
-
-const services = [
-  {
-    number: '01',
-    title: 'Дымоходы',
-    description: 'Металлические элементы и решения для дымоходных систем.',
-    label: 'Дымоходы',
-  },
-  {
-    number: '02',
-    title: 'Вентиляция',
-    description: 'Изделия и элементы вентиляции под задачу и нужные размеры.',
-    label: 'Вентиляция',
-  },
-  {
-    number: '03',
-    title: 'Изделия на заказ',
-    description: 'Нержавеющая сталь и другие металлы — по вашему описанию или чертежу.',
-    label: 'Изделия на заказ',
-  },
-]
-
-const productionFeatures = [
-  { title: 'Собственное производство', detail: 'Работаем со своими заказами' },
-  { title: 'Лазерная резка', detail: 'Точный раскрой металла' },
-  { title: 'Гибка металла', detail: 'Формируем детали под задачу' },
-  { title: 'Другие станки', detail: 'Для разных видов изделий' },
-]
+import { homepageCopy, otherProducts, primaryServices, productionProcesses } from './site-content.js'
 
 function ChimneyMark() {
   return (
@@ -152,14 +125,14 @@ function App() {
   return (
     <>
       <div className="topline">
-        <span><strong>ООО «ВиД»</strong><span className="topline-divider"> / </span>Саратов</span>
-        <span>Собственное производство · изделия под вашу задачу</span>
+        <span><strong>ООО «ВиД»</strong><span className="topline-divider"> / </span>{homepageCopy.location}</span>
+        <span>{homepageCopy.headerTagline}</span>
       </div>
 
       <header className="site-header">
         <a className="brand" href="#top" aria-label="ООО ВиД — на главную">
           <span className="brand-mark">ВиД</span>
-          <span className="brand-copy">ВиД<small>Металл и производство</small></span>
+          <span className="brand-copy">ВиД<small>{homepageCopy.brandSubline}</small></span>
         </a>
         <button
           className="menu-toggle"
@@ -172,7 +145,7 @@ function App() {
           {menuOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
         <nav id="site-navigation" className={menuOpen ? 'main-nav is-open' : 'main-nav'} aria-label="Основная навигация">
-          <a href="#services" onClick={closeMenu}>Направления</a>
+          <a href="#services" onClick={closeMenu}>Дымоходы и вентиляция</a>
           <a href="#production" onClick={closeMenu}>Производство</a>
           <a className="nav-cta" href="#contact" onClick={closeMenu}>Обсудить заказ <ArrowUpRight size={15} /></a>
         </nav>
@@ -182,26 +155,31 @@ function App() {
       <main id="top">
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow"><span className="status-dot" /> Саратов · собственное производство</p>
-            <h1 id="hero-title">Металл,<br />который <em>решает.</em></h1>
-            <p className="hero-description">
-              Изготавливаем изделия под вашу задачу: дымоходы, вентиляцию и детали, которым не нашлось готового решения.
-            </p>
+            <p className="eyebrow"><span className="status-dot" /> {homepageCopy.heroEyebrow}</p>
+            <h1 id="hero-title">{homepageCopy.heroTitle}</h1>
+            <p className="hero-description">{homepageCopy.heroDescription}</p>
             <div className="hero-actions">
-              <a className="button-primary" href="#contact">Рассчитать заказ <ArrowUpRight size={17} /></a>
+              <a className="button-primary" href="#contact">{homepageCopy.heroPrimaryAction} <ArrowUpRight size={17} /></a>
               <a className="chimney-button" href="#services" aria-label="Перейти к направлениям и изделиям">
                 <ChimneyMark />
-                <span>Каталог<br />изделий</span>
+                <span>{homepageCopy.heroSecondaryAction}</span>
                 <ArrowDown className="chimney-arrow" size={14} />
               </a>
             </div>
-            <div className="hero-note"><span>Лазерная резка</span><i /> <span>Гибка металла</span><i /> <span>Изделия на заказ</span></div>
+            <div className="hero-note">
+              {productionProcesses.slice(0, 4).map((process, index) => (
+                <span className="hero-note-item" key={process.title}>
+                  {index > 0 && <i />}
+                  {process.title}
+                </span>
+              ))}
+            </div>
           </div>
           <HeroArtwork />
         </section>
 
         <section className="benefits" aria-label="Возможности производства">
-          {productionFeatures.map((feature, index) => (
+          {productionProcesses.slice(0, 4).map((feature, index) => (
             <article className="benefit" key={feature.title}>
               <span className="benefit-number">0{index + 1}</span>
               <div><h2>{feature.title}</h2><p>{feature.detail}</p></div>
@@ -211,11 +189,11 @@ function App() {
 
         <section className="services section-pad" id="services" aria-labelledby="services-title">
           <div className="section-heading">
-            <div><p className="section-label">01 / Что изготавливаем</p><h2 id="services-title">От готового решения<br />до детали <em>по эскизу.</em></h2></div>
-            <p className="section-aside">Три направления.<br />Одно производство.</p>
+            <div><p className="section-label">{homepageCopy.servicesLabel}</p><h2 id="services-title">{homepageCopy.servicesTitle}</h2></div>
+            <p className="section-aside">{homepageCopy.servicesDescription}</p>
           </div>
           <div className="service-grid">
-            {services.map((service) => (
+            {primaryServices.map((service) => (
               <a
                 className={`service-card service-card-${service.number}`}
                 href="#contact"
@@ -223,9 +201,7 @@ function App() {
                 onClick={() => setSelectedService(service.label)}
               >
                 <span className="service-number">{service.number} / {service.title}</span>
-                <span className="service-mark" aria-hidden="true">
-                  {service.number === '01' ? <ChimneyMark /> : service.number === '02' ? <Wind /> : <Layers />}
-                </span>
+                <span className="service-mark" aria-hidden="true">{service.number === '01' ? <ChimneyMark /> : <Wind />}</span>
                 <h3>{service.title}</h3>
                 <p>{service.description}</p>
                 <span className="service-link">Обсудить задачу <ArrowUpRight size={15} /></span>
@@ -234,24 +210,47 @@ function App() {
           </div>
         </section>
 
+        <section className="other-products section-pad" id="other-products" aria-labelledby="other-products-title">
+          <div className="section-heading">
+            <div>
+              <p className="section-label">{homepageCopy.otherProductsLabel}</p>
+              <h2 id="other-products-title">{homepageCopy.otherProductsTitle}</h2>
+            </div>
+            <p className="section-aside">{homepageCopy.otherProductsDescription}</p>
+          </div>
+          <div className="service-grid">
+            {otherProducts.map((product) => (
+              <a
+                className="service-card other-product-card"
+                href="#contact"
+                key={product.label}
+                onClick={() => setSelectedService(product.label)}
+              >
+                <span className="service-mark" aria-hidden="true"><Layers /></span>
+                <h3>{product.title}</h3>
+                <p>{product.description}</p>
+                <span className="service-link">Обсудить заказ <ArrowUpRight size={15} /></span>
+              </a>
+            ))}
+          </div>
+        </section>
+
         <section className="production section-pad" id="production" aria-labelledby="production-title">
           <ProductionArtwork />
           <div className="production-copy">
-            <p className="section-label">02 / Производство</p>
-            <h2 id="production-title">Не просто продаём.<br /><em>Делаем сами.</em></h2>
-            <p>
-              У ООО «ВиД» собственное производство с лазерной резкой, гибочным и другими станками. Поэтому можно обсудить не только типовое изделие, но и заказ по вашим размерам или чертежу.
-            </p>
-            <a className="text-link" href="#contact">Расскажите о задаче <ArrowRight size={16} /></a>
+            <p className="section-label">{homepageCopy.productionLabel}</p>
+            <h2 id="production-title">{homepageCopy.productionTitle}</h2>
+            <p>{homepageCopy.productionDescription}</p>
+            <a className="text-link" href="#contact">Обсудить изготовление <ArrowRight size={16} /></a>
           </div>
         </section>
 
         <section className="contact section-pad" id="contact" aria-labelledby="contact-title">
           <div className="contact-copy">
-            <p className="section-label">03 / Ваша задача</p>
-            <h2 id="contact-title">Есть эскиз?<br /><em>Нужна деталь?</em></h2>
-            <p>Опишите, что нужно изготовить. Заявка откроется в Telegram — останется подтвердить отправку.</p>
-            <div className="contact-detail"><span className="contact-dot" /> Ответим в Telegram</div>
+            <p className="section-label">{homepageCopy.contactLabel}</p>
+            <h2 id="contact-title">{homepageCopy.contactTitle}</h2>
+            <p>{homepageCopy.contactDescription}</p>
+            <div className="contact-detail"><span className="contact-dot" /> {homepageCopy.contactDetail}</div>
           </div>
           <form className="contact-form" onSubmit={handleSubmit}>
             <label>
@@ -266,7 +265,8 @@ function App() {
               Направление
               <select name="service" value={selectedService} onChange={(event) => setSelectedService(event.target.value)} required>
                 <option value="" disabled>Выберите направление</option>
-                {services.map((service) => <option value={service.label} key={service.number}>{service.title}</option>)}
+                {primaryServices.map((service) => <option value={service.label} key={service.number}>{service.title}</option>)}
+                {otherProducts.map((product) => <option value={product.label} key={product.label}>{product.title}</option>)}
                 <option value="Другое">Другое</option>
               </select>
             </label>
@@ -274,7 +274,7 @@ function App() {
               Опишите задачу
               <textarea name="details" placeholder="Что нужно изготовить? Укажите размеры, материал или другие детали." rows="3" required />
             </label>
-            <button className="submit-button" type="submit">Подготовить заявку <ArrowRight size={18} /></button>
+            <button className="submit-button" type="submit">{homepageCopy.contactSubmit} <ArrowRight size={18} /></button>
             {formStatus && (
               <div className="form-status" role="status" aria-live="polite">
                 <p>{formStatus}</p>
@@ -287,8 +287,8 @@ function App() {
       </main>
 
       <footer className="site-footer">
-        <a className="brand" href="#top" aria-label="ВиД — наверх"><span className="brand-mark">ВиД</span><span className="brand-copy">ВиД<small>Металл и производство</small></span></a>
-        <p>Дымоходы · вентиляция<br />Изделия из металла на заказ</p>
+        <a className="brand" href="#top" aria-label="ВиД — наверх"><span className="brand-mark">ВиД</span><span className="brand-copy">ВиД<small>{homepageCopy.brandSubline}</small></span></a>
+        <p>{homepageCopy.footerDescription}</p>
         <span className="copyright">ООО «ВиД» · Саратов</span>
         <a className="footer-up" href="#top">Наверх <ArrowUpRight size={15} /></a>
       </footer>
