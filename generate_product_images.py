@@ -131,6 +131,10 @@ def generate_images(
                 temporary_file.flush()
                 os.fsync(temporary_file.fileno())
 
+            if temporary_path is None:
+                raise RuntimeError("Temporary image file was not created.")
+
+            os.chmod(temporary_path, 0o644)
             os.replace(temporary_path, output_dir / filename)
         finally:
             if temporary_path is not None:
