@@ -1,19 +1,34 @@
 from collections import OrderedDict, deque
+import csv
+from datetime import datetime
+import html
 from ipaddress import ip_address
 import json
 import logging
 import os
 from pathlib import Path
+import re
 from time import monotonic
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from aiohttp import web
 from telegram import Bot, Update
+from telegram.constants import ParseMode
 from telegram.error import TelegramError
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+LEADS_PATH = Path(__file__).resolve().parents[1] / "leads.csv"
+MOSCOW_TIMEZONE = ZoneInfo("Europe/Moscow")
+RUSSIAN_PHONE_PATTERN = re.compile(r"\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}")
+LEAD_SAVE_ERROR = {"error": "Could not save order"}
+TELEGRAM_DELIVERY_DELAYED = {
+    "ok": True,
+    "telegram_delivered": False,
+    "message": "Заявка сохранена, но уведомление менеджеру задерживается.",
+}
 ORDER_BODY_LIMIT = 16 * 1024
 ORDER_RATE_LIMIT = 5
 ORDER_RATE_WINDOW_SECONDS = 10 * 60
@@ -78,13 +93,70 @@ def _is_rate_limited(request: web.Request) -> bool:
     return False
 
 
+def _append_lead(order: dict[str, str], received_at: datetime | None = None) -> None:
+    received_at = received_at or datetime.now(MOSCOW_TIMEZONE)
+    if received_at.tzinfo is None:
+        received_at = received_at.replace(tzinfo=MOSCOW_TIMEZONE)
+    received_at = received_at.astimezone(MOSCOW_TIMEZONE)
+
+    descriptor = os.open(
+        LEADS_PATH,
+        os.O_APPEND | os.O_CREAT | os.O_WRONLY,
+        0o600,
+    )
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "a", encoding="utf-8", newline="") as leads_file:
+            descriptor = -1
+            writer = csv.DictWriter(
+                leads_file,
+                fieldnames=(
+                    "received_at_msk",
+                    "name",
+                    "contact",
+                    "service",
+                    "details",
+                ),
+            )
+            if os.fstat(leads_file.fileno()).st_size == 0:
+                writer.writeheader()
+            writer.writerow(
+                {
+                    "received_at_msk": received_at.isoformat(timespec="seconds"),
+                    **order,
+                }
+            )
+            leads_file.flush()
+            os.fsync(leads_file.fileno())
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _format_order_message(
+    order: dict[str, str],
+    received_at: datetime,
+) -> str:
+    contact_digits = re.sub(r"\D", "", order["contact"])
+    moscow_time = received_at.astimezone(MOSCOW_TIMEZONE)
+    return "\n".join(
+        (
+            "🔥 <b>Новая заявка vid64.ru</b>",
+            "",
+            f"<b>Имя:</b> {html.escape(order['name'], quote=True)}",
+            (
+                f'<b>Телефон:</b> <a href="tel:+{contact_digits}">'
+                f"{html.escape(order['contact'], quote=True)}</a>"
+            ),
+            f"<b>Направление:</b> {html.escape(order['service'], quote=True)}",
+            f"<b>Комментарий:</b> {html.escape(order['details'], quote=True)}",
+            f"<b>Дата:</b> {moscow_time.strftime('%d.%m.%Y %H:%M')} МСК",
+        )
+    )
+
+
 async def handle_order(request: web.Request) -> web.Response:
     admin_chat_id = request.app[ADMIN_CHAT_ID_KEY]
-    if not admin_chat_id:
-        return web.json_response(
-            {"error": "Order service unavailable"},
-            status=503,
-        )
 
     if request.content_type != "application/json":
         return web.json_response({"error": "Expected JSON"}, status=400)
@@ -109,32 +181,38 @@ async def handle_order(request: web.Request) -> web.Response:
             return web.json_response({"error": "Invalid order"}, status=400)
         order[field] = normalized
 
+    if not RUSSIAN_PHONE_PATTERN.fullmatch(order["contact"]):
+        return web.json_response({"error": "Invalid order"}, status=400)
+
     if _is_rate_limited(request):
         return web.json_response(
             {"error": "Too many requests"},
             status=429,
         )
 
-    message = "\n".join(
-        (
-            "Новая заявка с сайта ООО «ВиД»",
-            f"Имя: {order['name']}",
-            f"Контакт: {order['contact']}",
-            f"Направление: {order['service']}",
-            f"О заказе: {order['details']}",
-        )
-    )
+    received_at = datetime.now(MOSCOW_TIMEZONE)
+    try:
+        _append_lead(order, received_at)
+    except OSError:
+        logger.exception("Could not save website order")
+        return web.json_response(LEAD_SAVE_ERROR, status=500)
+
+    message = _format_order_message(order, received_at)
+    if not admin_chat_id:
+        logger.error("TELEGRAM_ADMIN_CHAT_ID is not configured; order saved locally")
+        return web.json_response(TELEGRAM_DELIVERY_DELAYED, status=202)
 
     try:
         await request.app[TELEGRAM_BOT_KEY].send_message(
             chat_id=admin_chat_id,
             text=message,
+            parse_mode=ParseMode.HTML,
         )
     except TelegramError:
         logger.exception("Could not deliver website order to Telegram")
         return web.json_response(
-            {"error": "Could not deliver order"},
-            status=502,
+            TELEGRAM_DELIVERY_DELAYED,
+            status=202,
         )
 
     return web.json_response({"ok": True})
