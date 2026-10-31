@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { submitOrder } from './order-api.js'
+import { getOrderStatusMessage, submitOrder } from './order-api.js'
 
 const order = {
   name: 'Алина',
-  contact: '+7 900 123-45-67',
+  contact: '+7 (900) 123-45-67',
   service: 'Изделия на заказ',
   details: 'Нержавейка + гибка',
 }
@@ -54,5 +54,24 @@ test('turns network failures into a retryable user-safe error', async () => {
       throw new TypeError('network details')
     }),
     { message: 'Не удалось отправить заявку. Попробуйте ещё раз.' },
+  )
+})
+
+test('distinguishes confirmed delivery from a saved lead with delayed Telegram delivery', () => {
+  assert.equal(
+    getOrderStatusMessage({ ok: true }),
+    'Спасибо, заявка принята!',
+  )
+  assert.equal(
+    getOrderStatusMessage({
+      ok: true,
+      telegram_delivered: false,
+      message: 'Заявка сохранена, но уведомление менеджеру задерживается.',
+    }),
+    'Заявка сохранена, но уведомление менеджеру задерживается.',
+  )
+  assert.equal(
+    getOrderStatusMessage({ ok: true, telegram_delivered: false }),
+    'Заявка сохранена, но уведомление менеджеру задерживается.',
   )
 })

@@ -1,4 +1,15 @@
 const ORDER_ERROR = 'Не удалось отправить заявку. Попробуйте ещё раз.'
+const ORDER_DELIVERY_DELAYED = 'Заявка сохранена, но уведомление менеджеру задерживается.'
+
+export function getOrderStatusMessage(result) {
+  if (result?.telegram_delivered === false) {
+    return typeof result.message === 'string' && result.message.trim()
+      ? result.message
+      : ORDER_DELIVERY_DELAYED
+  }
+
+  return 'Спасибо, заявка принята!'
+}
 
 export async function submitOrder(values, fetchImpl = fetch) {
   let response

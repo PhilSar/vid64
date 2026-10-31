@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowRight, ArrowUpRight, Layers, Menu, Wind, X } from 'lucide-react'
-import { submitOrder } from './order-api.js'
+import { getOrderStatusMessage, submitOrder } from './order-api.js'
+import { formatRussianPhone, isRussianPhoneComplete } from './phone-mask.js'
 import { companyContacts, companyDetails, homepageCopy, otherProducts, primaryServices, productionProcesses } from './site-content.js'
 
 function ChimneyMark() {
@@ -89,19 +90,31 @@ function ProductionArtwork() {
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [selectedService, setSelectedService] = useState('')
+  const [contact, setContact] = useState('')
   const [formStatus, setFormStatus] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isOrderSaved, setIsOrderSaved] = useState(false)
+  const resetFormTimeout = useRef()
+
+  useEffect(() => () => clearTimeout(resetFormTimeout.current), [])
 
   async function handleSubmit(event) {
     event.preventDefault()
+    if (isSubmitting || isOrderSaved) return
     setFormStatus('')
 
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     const values = {
       name: String(form.get('name') ?? '').trim(),
       contact: String(form.get('contact') ?? '').trim(),
       service: String(form.get('service') ?? '').trim(),
       details: String(form.get('details') ?? '').trim(),
+    }
+
+    if (!isRussianPhoneComplete(values.contact)) {
+      setFormStatus('Введите полный номер телефона в формате +7 (XXX) XXX-XX-XX.')
+      return
     }
 
     if (Object.values(values).some((value) => !value)) {
@@ -111,8 +124,16 @@ function App() {
 
     setIsSubmitting(true)
     try {
-      await submitOrder(values)
-      setFormStatus('Спасибо, заявка принята!')
+      const result = await submitOrder(values)
+      setFormStatus(getOrderStatusMessage(result))
+      setIsOrderSaved(true)
+      resetFormTimeout.current = setTimeout(() => {
+        formElement.reset()
+        setContact('')
+        setSelectedService('')
+        setFormStatus('')
+        setIsOrderSaved(false)
+      }, 4000)
     } catch {
       setFormStatus('Не удалось отправить заявку. Попробуйте ещё раз.')
     } finally {
@@ -309,8 +330,18 @@ function App() {
               <input name="name" placeholder="Ваше имя" autoComplete="name" required />
             </label>
             <label>
-              Телефон или Telegram
-              <input name="contact" placeholder="+7 или @username" autoComplete="tel" required />
+              Телефон
+              <input
+                name="contact"
+                type="tel"
+                inputMode="tel"
+                placeholder="+7 (XXX) XXX-XX-XX"
+                autoComplete="tel"
+                maxLength={18}
+                value={contact}
+                onChange={(event) => setContact(formatRussianPhone(event.target.value))}
+                required
+              />
             </label>
             <label>
               Направление
@@ -325,8 +356,8 @@ function App() {
               Опишите задачу
               <textarea name="details" placeholder="Что нужно изготовить? Укажите размеры, материал или другие детали." rows="3" required />
             </label>
-            <button className="submit-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Отправляем…' : homepageCopy.contactSubmit} <ArrowRight size={18} />
+            <button className="submit-button" type="submit" disabled={isSubmitting || isOrderSaved || !isRussianPhoneComplete(contact)}>
+              {isSubmitting ? 'Отправка...' : homepageCopy.contactSubmit} <ArrowRight size={18} />
             </button>
             {formStatus && (
               <div className="form-status" role="status" aria-live="polite">
