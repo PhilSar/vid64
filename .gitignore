@@ -9,4 +9,12 @@ leads.csv
 .worktrees/
 .superpowers/
 .DS_Store
-.vercel
+.vercel/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.vite/
+.cache/
+coverage/
+.coverage
+*.log

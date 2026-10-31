@@ -21,111 +21,19 @@ npm run dev
 
 Сайт откроется по адресу, который выведет Vite (обычно `http://localhost:5173`). Проверки: `npm test`; production-сборка: `npm run build`.
 
-## Генерация визуализаций изделий
-
-Google больше не предоставляет Imagen 3 через Gemini API. Скрипт использует модель `gemini-nano-banana-2.1` и закреплённую версию SDK `google-genai==2.34.0`; каждый запуск отправляет три запроса и может расходовать квоту Gemini.
-
-1. Добавьте ключ Gemini API в корневой `.env`:
-
-   ```dotenv
-   GEMINI_API_KEY=ваш_ключ
-   ```
-
-   Не добавляйте настоящий ключ в Git: `.env` исключён из отслеживания.
-2. Установите зависимости генератора отдельно от зависимостей сайта и Telegram-бота:
-
-   ```sh
-   python3 -m venv .venv
-   .venv/bin/python -m pip install -r requirements-image-gen.txt
-   ```
-3. Запустите генерацию из корня проекта:
-
-   ```sh
-   .venv/bin/python generate_product_images.py
-   ```
-
-Скрипт сохраняет WebP-файлы в `public/images/` размером не более 500 КБ каждый. Сейчас сайт показывает одноимённые SVG-иллюстрации; WebP-визуализации можно подключить отдельно после успешной генерации. Сайт не отправляет запросы к Gemini из браузера.
-
 ## Заявки через Telegram
 
-1. Создайте бота через [@BotFather](https://t.me/BotFather) и добавьте `TELEGRAM_BOT_TOKEN` в корневой `.env`. Не публикуйте токен и не добавляйте его в переменные `VITE_*`.
-2. Создайте окружение и установите зависимости бота: `python3 -m venv .venv && .venv/bin/python -m pip install -r bot/requirements.txt`.
-3. Запустите `.venv/bin/python bot/bot.py`. Один процесс запускает Telegram-бота и HTTP API на `127.0.0.1:8080`.
-4. Отправьте боту `/id` из Telegram-чата, куда должны поступать заявки. Добавьте полученный ID как `TELEGRAM_ADMIN_CHAT_ID` в корневой `.env` и перезапустите бота.
-5. Для локальной разработки запускайте сайт через `npm run dev`: Vite автоматически проксирует запросы `/api/` на `127.0.0.1:8080`.
+В production сайт использует Vercel-функцию [`api/order.js`](./api/order.js), которая обрабатывает `POST /api/order` и отправляет заявку в Telegram. В настройках проекта Vercel откройте **Settings → Environment Variables**, добавьте `TELEGRAM_BOT_TOKEN` и `TELEGRAM_ADMIN_CHAT_ID` для нужных окружений и заново разверните проект. Это серверные переменные: не используйте префикс `VITE_` и не сохраняйте значения в Git.
 
-Каждая корректная заявка сначала синхронно сохраняется в корневой `leads.csv` с правами `0600`, затем отправляется в Telegram. Файл содержит персональные данные: ограничьте доступ к нему и резервным копиям. Одна копия бота должна обслуживать один `leads.csv`; параллельный запуск нескольких процессов с общим файлом не поддерживается. Автоматической повторной отправки накопленных заявок нет.
+Production-функция не сохраняет заявки на диск. Если Telegram недоступен, клиент увидит ошибку, а резервное сохранение заявки не гарантируется.
 
-Форма отправляет поля на `POST /api/order` на том же домене. Сообщение «Спасибо, заявка принята!» отображается после подтверждения доставки в Telegram. Если Telegram недоступен, но запись на диск прошла, API возвращает HTTP 202, а форма сообщает «Заявка сохранена, но уведомление менеджеру задерживается.» и не предлагает отправить дубликат. При ошибке сохранения API возвращает ошибку, а отправка в Telegram не выполняется. API принимает не более пяти корректных заявок с одного IP за десять минут. На production веб-сервере путь `/api/` должен проксироваться на `http://127.0.0.1:8080` с передачей реального IP посетителя, а сайт должен работать по HTTPS. Готовая конфигурация Nginx и инструкция для Ubuntu 24.04 находятся в [deploy.md](./deploy.md); порт 8080 должен оставаться доступен только локально.
+### Локальная разработка
 
-### Vercel: serverless API
+Для локального `npm run dev` Vite проксирует `/api/order` на Python API по адресу `127.0.0.1:8080`:
 
-При деплое сайта на Vercel функция [`api/order.js`](./api/order.js) обрабатывает `POST /api/order` и отправляет заказ напрямую в Telegram. В настройках проекта Vercel откройте **Settings → Environment Variables**, добавьте `TELEGRAM_BOT_TOKEN` и `TELEGRAM_ADMIN_CHAT_ID` как серверные переменные для нужных окружений и заново разверните проект. Не задавайте им префикс `VITE_` и не сохраняйте реальные значения в репозитории.
+1. Создайте `.env` в корне проекта с `TELEGRAM_BOT_TOKEN` и `TELEGRAM_ADMIN_CHAT_ID`. Не публикуйте секреты.
+2. Установите зависимости локального API: `python3 -m venv .venv && .venv/bin/python -m pip install -r bot/requirements.txt`.
+3. Запустите API и Telegram-бота командой `.venv/bin/python bot/bot.py`.
+4. В другом терминале запустите сайт: `npm run dev`.
 
-В этой serverless-схеме заявки не сохраняются в `leads.csv`: если Telegram недоступен, клиент увидит ошибку отправки, и сервер не сможет гарантировать резервное сохранение. Для локального `npm run dev` запускайте Python-бота; Vite проксирует `/api/order` на `127.0.0.1:8080`.
-
-Чтобы ответить клиенту, ответьте в Telegram непосредственно на пересланное сообщение клиента.
-
-### Linux: systemd
-
-Шаблон [`bot.service`](./bot.service) запускает бота от отдельного непривилегированного пользователя. Сначала установите проект и создайте `.venv` в `/opt/<project>`; создайте `.env` с `TELEGRAM_BOT_TOKEN` и `TELEGRAM_ADMIN_CHAT_ID`, доступный этому пользователю. Не помещайте секреты в unit-файл.
-
-Скопируйте шаблон в systemd и замените `REPLACE_WITH_SERVICE_USER` на пользователя службы, а `REPLACE_WITH_PROJECT_PATH` — на имя каталога проекта внутри `/opt` (например, `vid64`):
-
-Бот хранит заявки в `leads.csv` в корне проекта. До запуска службы убедитесь, что пользователь службы может создать этот файл. Если каталог проекта принадлежит другому пользователю, установите ACL (пакет `acl`, если команды `setfacl` ещё нет) и sticky bit, чтобы разрешить создание файла, не давая службе удалять чужие файлы:
-
-```sh
-sudo setfacl -m u:REPLACE_WITH_SERVICE_USER:rwx /opt/REPLACE_WITH_PROJECT_PATH
-sudo chmod +t /opt/REPLACE_WITH_PROJECT_PATH
-```
-
-Если `leads.csv` уже существует, передайте его пользователю службы и оставьте доступ только владельцу:
-
-```sh
-sudo chown REPLACE_WITH_SERVICE_USER:REPLACE_WITH_SERVICE_USER /opt/REPLACE_WITH_PROJECT_PATH/leads.csv
-sudo chmod 0600 /opt/REPLACE_WITH_PROJECT_PATH/leads.csv
-```
-
-Замените заполнители в командах на те же значения, что и в unit-файле.
-
-```sh
-sudo install -o root -g root -m 0644 bot.service /etc/systemd/system/vid64-bot.service
-sudoedit /etc/systemd/system/vid64-bot.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now vid64-bot.service
-sudo systemctl status vid64-bot.service
-sudo journalctl -u vid64-bot.service -f
-```
-
-Для остановки и отключения автозапуска:
-
-```sh
-sudo systemctl disable --now vid64-bot.service
-```
-
-### macOS: LaunchAgent
-
-Шаблон [`bot.plist`](./bot.plist) предназначен для запуска при входе пользователя. `.env` загружается самим `bot.py` из корня проекта; поместите его рядом с `bot/` и ограничьте права чтения владельцем. До загрузки замените `REPLACE_WITH_USER` своим именем пользователя, а `REPLACE_WITH_PROJECT_PATH` — относительным путём проекта внутри домашней папки. В шаблоне нет токена или других секретов.
-
-```sh
-mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
-cp bot.plist "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
-open -e "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
-launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
-launchctl kickstart -k "gui/$(id -u)/ru.vid64.bot"
-tail -f "$HOME/Library/Logs/vid-bot.log"
-```
-
-Чтобы остановить службу и отключить её автозапуск, выполните обе команды. Отключение сохраняется между входами в систему, пока службу явно не включат снова:
-
-```sh
-launchctl disable "gui/$(id -u)/ru.vid64.bot"
-launchctl bootout "gui/$(id -u)/ru.vid64.bot"
-```
-
-Чтобы снова включить автозапуск и запустить бота в текущем сеансе:
-
-```sh
-launchctl enable "gui/$(id -u)/ru.vid64.bot"
-launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/ru.vid64.bot.plist"
-```
+Локальный Python API перед отправкой в Telegram сохраняет заявки в `leads.csv`, содержащий персональные данные. Ограничьте доступ к этому файлу и не запускайте несколько процессов бота с общим файлом.

@@ -2,7 +2,7 @@
 
 ## Intent
 
-Keep every valid, rate-limited website lead locally before attempting Telegram delivery, format Telegram notifications safely and clearly, and provide service templates for unattended startup on Linux and macOS.
+Keep every valid, rate-limited local website lead before attempting Telegram delivery and format Telegram notifications safely and clearly.
 
 ## Goals
 
@@ -10,7 +10,6 @@ Keep every valid, rate-limited website lead locally before attempting Telegram d
 - Append each valid accepted lead to a root-level `leads.csv` before calling Telegram. Flush and `fsync` the file before proceeding, create it with owner-only permissions, and do not add it to Git.
 - If Telegram is unavailable or the admin chat is not configured after persistence, respond with HTTP 202 and an explicit response flag/message saying the lead is saved but the manager has not yet been notified. The browser form must display that distinction.
 - If local persistence fails, do not attempt Telegram delivery and do not return a success-shaped response.
-- Add a systemd unit template and a per-user macOS LaunchAgent plist template with documented installation steps and replaceable project/user paths.
 
 ## Non-goals
 
@@ -28,7 +27,6 @@ Keep every valid, rate-limited website lead locally before attempting Telegram d
 - Escape all dynamic fields for Telegram HTML. Format the heading `🔥 Новая заявка vid64.ru`, customer name, clickable `tel:` contact, selected direction, comment, and a `Europe/Moscow` timestamp.
 - On a Telegram `TelegramError` or missing admin chat, retain the saved lead and return the 202 response described above, with the Russian notice `Заявка сохранена, но уведомление менеджеру задерживается.` The browser displays this notice rather than claiming delivery or encouraging a duplicate submission.
 - On persistence failure, log the exception and return a non-success HTTP error; never call Telegram.
-- `bot.service` is a systemd service template run as a configured non-root project user. `bot.plist` is a per-user LaunchAgent template. Both use the project virtualenv and root `.env`; docs must explain substituting paths/user and enabling the service.
 - The bot is one process per project deployment, consistent with the existing polling setup. Append, flush, and fsync happen synchronously without yielding the event loop, so handlers in that process cannot interleave CSV writes. Multiple bot instances sharing one CSV are unsupported and must be stated in the deployment notes.
 
 ## Approaches considered
@@ -43,11 +41,9 @@ Keep every valid, rate-limited website lead locally before attempting Telegram d
 - Only validated, non-rate-limited submissions are accepted leads and persisted.
 - Return HTTP 202 after successful persistence even when Telegram is unavailable; explain that delivery is pending rather than encouraging duplicate form submissions.
 - Keep the existing five-valid-orders-per-IP-per-ten-minutes limiter. Rate-limited submissions are not appended.
-- Keep deployment files as templates with placeholders; do not embed machine-specific paths, credentials, or user names.
 
 ## Verification
 
 - Add API tests proving HTML escaping and Moscow timestamp formatting, persistence before Telegram, retention on Telegram failure or missing admin chat, and a clear non-success response with no Telegram call when file persistence fails.
 - Add frontend tests for displaying the saved-but-not-delivered notice.
 - Run the Python and Node test suites, `npm run build`, and `git diff --check`.
-- Inspect service templates for valid structure and confirm no `.env` or generated lead data is staged.
