@@ -16,14 +16,17 @@ export const homepageCopy = {
   productionLabel: '03 / Производство',
   productionTitle: 'Режем, гнём, свариваем и вальцуем',
   productionDescription: 'В производстве используем лазерный станок, гибочное оборудование, аргоновую сварку, вальцовочные станки и другое оборудование.',
+  productionImage: '/images/laser-cutting.svg',
+  productionImageAlt: 'Лазерная резка листа нержавеющей стали на станке с ЧПУ',
+  imageDisclosure: 'Иллюстрация для примера — не фото выполненного заказа',
   aboutLabel: '04 / О компании',
   aboutTitle: 'ООО «ВиД»',
   aboutDescription: 'Юридические сведения из открытых данных реестра. Адрес указан как юридический и не подтверждён как место приёма клиентов.',
   contactLabel: '05 / Обсудим заказ',
   contactTitle: 'Что нужно изготовить?',
-  contactDescription: 'Опишите задачу в форме. Откроется Telegram с подготовленным сообщением — проверьте его и подтвердите отправку.',
-  contactDetail: 'Заявка через Telegram',
-  contactSubmit: 'Подготовить сообщение',
+  contactDescription: 'Опишите задачу в форме — заявка отправится прямо с этой страницы.',
+  contactDetail: 'Заявка поступит в Telegram',
+  contactSubmit: 'Отправить заявку',
   footerDescription: 'Дымоходы · вентиляция · изделия из металла',
 }
 
@@ -57,12 +60,16 @@ export const primaryServices = [
     title: 'Дымоходы',
     description: 'Изготавливаем все элементы для дымоходных систем.',
     label: 'Дымоходы',
+    image: '/images/chimney-components.svg',
+    imageAlt: 'Элементы дымохода из нержавеющей стали: трубы, отвод и оголовок',
   },
   {
     number: '02',
     title: 'Вентиляция',
     description: 'Изготавливаем все элементы для вентиляционных систем.',
     label: 'Вентиляция',
+    image: '/images/ventilation-components.svg',
+    imageAlt: 'Оцинкованные вентиляционные воздуховоды, отводы и соединительные элементы',
   },
 ]
 

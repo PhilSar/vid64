@@ -3,7 +3,7 @@ import binascii
 import os
 import sys
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from io import BytesIO
 from pathlib import Path
 
@@ -12,6 +12,7 @@ from PIL import Image, ImageOps
 
 IMAGE_MODEL = "gemini-nano-banana-2.1"
 MAX_IMAGE_BYTES = 500_000
+GENERATION_TIMEOUT_SECONDS = 600
 IMAGE_JOBS = (
     (
         "chimney-components.webp",
@@ -50,22 +51,18 @@ def require_api_key(environment: Mapping[str, str]) -> str:
     return api_key
 
 
-def extract_image_bytes(outputs: Sequence[object] | None) -> bytes:
-    if outputs is not None:
-        for output in outputs:
-            if getattr(output, "type", None) != "image":
-                continue
+def extract_image_bytes(image_output: object | None) -> bytes:
+    if getattr(image_output, "type", None) != "image":
+        raise ValueError("Gemini response did not contain image data in its output.")
 
-            encoded_data = getattr(output, "data", None)
-            if not isinstance(encoded_data, str) or not encoded_data:
-                continue
+    encoded_data = getattr(image_output, "data", None)
+    if not isinstance(encoded_data, str) or not encoded_data:
+        raise ValueError("Gemini image output did not contain inline image data.")
 
-            try:
-                return base64.b64decode(encoded_data, validate=True)
-            except (binascii.Error, ValueError) as error:
-                raise ValueError("Gemini returned invalid base64 image data.") from error
-
-    raise ValueError("Gemini response did not contain image data in its outputs.")
+    try:
+        return base64.b64decode(encoded_data, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise ValueError("Gemini returned invalid base64 image data.") from error
 
 
 def to_webp(image_data: bytes, max_bytes: int = MAX_IMAGE_BYTES) -> bytes:
@@ -173,9 +170,15 @@ def main() -> int:
         response = client.interactions.create(
             model=IMAGE_MODEL,
             input=prompt,
-            response_modalities=["image"],
+            response_format={
+                "type": "image",
+                "mime_type": "image/jpeg",
+                "aspect_ratio": "3:2",
+                "image_size": "1K",
+            },
+            timeout=GENERATION_TIMEOUT_SECONDS,
         )
-        return extract_image_bytes(response.outputs)
+        return extract_image_bytes(response.output_image)
 
     output_dir = repository_root / "public" / "images"
     generate_images(generate, output_dir)

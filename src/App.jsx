@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowRight, ArrowUpRight, Layers, Menu, Wind, X } from 'lucide-react'
-import { buildTelegramMessage } from './contact-message.js'
+import { submitOrder } from './order-api.js'
 import { companyContacts, companyDetails, homepageCopy, otherProducts, primaryServices, productionProcesses } from './site-content.js'
 
 function ChimneyMark() {
@@ -67,17 +67,22 @@ function HeroArtwork() {
   )
 }
 
+function ImageWithDisclosure({ src, alt, className }) {
+  return (
+    <figure className={`image-with-disclosure ${className}`}>
+      <img className="visualization-image" src={src} alt={alt} loading="lazy" decoding="async" />
+      <figcaption className="image-disclosure">{homepageCopy.imageDisclosure}</figcaption>
+    </figure>
+  )
+}
+
 function ProductionArtwork() {
   return (
-    <div className="production-art" role="img" aria-label="Схематичное изображение лазерного станка в работе">
-      <div className="machine-frame">
-        <div className="machine-bed" />
-        <div className="machine-rail" />
-        <div className="machine-head" />
-        <span className="laser-line" />
-      </div>
-      <span className="machine-caption">Собственное производство / ВиД</span>
-    </div>
+    <ImageWithDisclosure
+      className="production-art"
+      src={homepageCopy.productionImage}
+      alt={homepageCopy.productionImageAlt}
+    />
   )
 }
 
@@ -85,13 +90,11 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [selectedService, setSelectedService] = useState('')
   const [formStatus, setFormStatus] = useState('')
-  const [telegramUrl, setTelegramUrl] = useState('')
-  const botName = import.meta.env.VITE_TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, '')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     setFormStatus('')
-    setTelegramUrl('')
 
     const form = new FormData(event.currentTarget)
     const values = {
@@ -106,16 +109,15 @@ function App() {
       return
     }
 
-    if (!botName || botName === 'your_bot_username') {
-      setFormStatus('Заявка не отправлена: настройте VITE_TELEGRAM_BOT_USERNAME в файле .env.')
-      return
+    setIsSubmitting(true)
+    try {
+      await submitOrder(values)
+      setFormStatus('Спасибо, заявка принята!')
+    } catch {
+      setFormStatus('Не удалось отправить заявку. Попробуйте ещё раз.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    const message = buildTelegramMessage(values)
-    const url = `https://t.me/${botName}?text=${encodeURIComponent(message)}`
-    setTelegramUrl(url)
-    setFormStatus('Telegram откроется в новой вкладке. Нажмите «Отправить», чтобы передать заявку.')
-    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   function closeMenu() {
@@ -202,6 +204,11 @@ function App() {
                 onClick={() => setSelectedService(service.label)}
               >
                 <span className="service-number">{service.number} / {service.title}</span>
+                <ImageWithDisclosure
+                  className="service-image"
+                  src={service.image}
+                  alt={service.imageAlt}
+                />
                 <span className="service-mark" aria-hidden="true">{service.number === '01' ? <ChimneyMark /> : <Wind />}</span>
                 <h3>{service.title}</h3>
                 <p>{service.description}</p>
@@ -318,14 +325,15 @@ function App() {
               Опишите задачу
               <textarea name="details" placeholder="Что нужно изготовить? Укажите размеры, материал или другие детали." rows="3" required />
             </label>
-            <button className="submit-button" type="submit">{homepageCopy.contactSubmit} <ArrowRight size={18} /></button>
+            <button className="submit-button" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Отправляем…' : homepageCopy.contactSubmit} <ArrowRight size={18} />
+            </button>
             {formStatus && (
               <div className="form-status" role="status" aria-live="polite">
                 <p>{formStatus}</p>
-                {telegramUrl && <a href={telegramUrl} target="_blank" rel="noopener noreferrer">Если Telegram не открылся, открыть ссылку вручную <ArrowUpRight size={14} /></a>}
               </div>
             )}
-            <p className="form-privacy">Сообщение отправляется после вашего подтверждения в Telegram.</p>
+            <p className="form-privacy">Данные формы передаются в Telegram для обработки заявки.</p>
           </form>
         </section>
       </main>

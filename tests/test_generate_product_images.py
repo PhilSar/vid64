@@ -37,24 +37,24 @@ class GenerateProductImagesTests(unittest.TestCase):
     def test_require_api_key_trims_whitespace(self) -> None:
         self.assertEqual(require_api_key({"GEMINI_API_KEY": "  test-key  "}), "test-key")
 
-    def test_extract_image_bytes_decodes_base64_from_an_image_output(self) -> None:
+    def test_extract_image_bytes_decodes_base64_from_the_image_output(self) -> None:
         image_data = b"image bytes"
-        outputs = [
-            SimpleNamespace(type="text", text="Generated image"),
-            SimpleNamespace(type="image", data=base64.b64encode(image_data).decode("ascii")),
-        ]
+        image_output = SimpleNamespace(
+            type="image",
+            data=base64.b64encode(image_data).decode("ascii"),
+        )
 
-        self.assertEqual(extract_image_bytes(outputs), image_data)
+        self.assertEqual(extract_image_bytes(image_output), image_data)
 
     def test_extract_image_bytes_rejects_missing_or_malformed_data(self) -> None:
         with self.assertRaisesRegex(ValueError, "image"):
             extract_image_bytes(None)
 
         with self.assertRaisesRegex(ValueError, "image"):
-            extract_image_bytes([SimpleNamespace(type="text", text="No image returned")])
+            extract_image_bytes(SimpleNamespace(type="text", text="No image returned"))
 
         with self.assertRaisesRegex(ValueError, "base64"):
-            extract_image_bytes([SimpleNamespace(type="image", data="not base64!")])
+            extract_image_bytes(SimpleNamespace(type="image", data="not base64!"))
 
     def test_to_webp_returns_a_valid_image_under_the_size_limit(self) -> None:
         result = to_webp(create_png((1800, 1200)), max_bytes=500_000)
@@ -113,7 +113,7 @@ class GenerateProductImagesTests(unittest.TestCase):
     def test_main_requests_image_only_output_for_each_job(self) -> None:
         image_data = base64.b64encode(create_png()).decode("ascii")
         response = SimpleNamespace(
-            outputs=[SimpleNamespace(type="image", data=image_data)]
+            output_image=SimpleNamespace(type="image", data=image_data)
         )
         client = SimpleNamespace(
             interactions=SimpleNamespace(create=Mock(return_value=response))
@@ -137,7 +137,17 @@ class GenerateProductImagesTests(unittest.TestCase):
         self.assertEqual(
             client.interactions.create.call_args_list,
             [
-                call(model=IMAGE_MODEL, input=prompt, response_modalities=["image"])
+                call(
+                    model=IMAGE_MODEL,
+                    input=prompt,
+                    response_format={
+                        "type": "image",
+                        "mime_type": "image/jpeg",
+                        "aspect_ratio": "3:2",
+                        "image_size": "1K",
+                    },
+                    timeout=600,
+                )
                 for _, prompt in IMAGE_JOBS
             ],
         )
