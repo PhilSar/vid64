@@ -1,18 +1,166 @@
+from collections import OrderedDict, deque
+from ipaddress import ip_address
+import json
 import logging
 import os
 from pathlib import Path
+from time import monotonic
 
 from dotenv import load_dotenv
-from telegram import Update
+from aiohttp import web
+from telegram import Bot, Update
+from telegram.error import TelegramError
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+ORDER_BODY_LIMIT = 16 * 1024
+ORDER_RATE_LIMIT = 5
+ORDER_RATE_WINDOW_SECONDS = 10 * 60
+ORDER_RATE_CLIENT_LIMIT = 4096
+ORDER_FIELD_LIMITS = {
+    "name": 100,
+    "contact": 120,
+    "service": 100,
+    "details": 3000,
+}
+TELEGRAM_BOT_KEY = web.AppKey("telegram_bot", Bot)
+ADMIN_CHAT_ID_KEY = web.AppKey("admin_chat_id", str)
+ORDER_ATTEMPTS_KEY = web.AppKey("order_attempts", OrderedDict)
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+
+def create_order_app(telegram_bot: Bot, admin_chat_id: str | None) -> web.Application:
+    app = web.Application(client_max_size=ORDER_BODY_LIMIT)
+    app[TELEGRAM_BOT_KEY] = telegram_bot
+    app[ADMIN_CHAT_ID_KEY] = (admin_chat_id or "").strip()
+    app[ORDER_ATTEMPTS_KEY] = OrderedDict()
+    app.router.add_post("/api/order", handle_order)
+    return app
+
+
+def _client_ip(request: web.Request) -> str:
+    forwarded_ip = request.headers.get("X-Real-IP", "").strip()
+    if forwarded_ip:
+        try:
+            return str(ip_address(forwarded_ip))
+        except ValueError:
+            pass
+    return request.remote or "unknown"
+
+
+def _is_rate_limited(request: web.Request) -> bool:
+    now = monotonic()
+    client_ip = _client_ip(request)
+    attempts_by_ip = request.app[ORDER_ATTEMPTS_KEY]
+    attempts = attempts_by_ip.get(client_ip)
+
+    if attempts is None:
+        if len(attempts_by_ip) >= ORDER_RATE_CLIENT_LIMIT:
+            attempts_by_ip.popitem(last=False)
+        attempts = deque()
+        attempts_by_ip[client_ip] = attempts
+    else:
+        attempts_by_ip.move_to_end(client_ip)
+        cutoff = now - ORDER_RATE_WINDOW_SECONDS
+        while attempts and attempts[0] <= cutoff:
+            attempts.popleft()
+
+    if len(attempts) >= ORDER_RATE_LIMIT:
+        return True
+
+    attempts.append(now)
+    return False
+
+
+async def handle_order(request: web.Request) -> web.Response:
+    admin_chat_id = request.app[ADMIN_CHAT_ID_KEY]
+    if not admin_chat_id:
+        return web.json_response(
+            {"error": "Order service unavailable"},
+            status=503,
+        )
+
+    if request.content_type != "application/json":
+        return web.json_response({"error": "Expected JSON"}, status=400)
+
+    try:
+        payload = await request.json()
+    except web.HTTPRequestEntityTooLarge:
+        return web.json_response({"error": "Request too large"}, status=413)
+    except (json.JSONDecodeError, UnicodeDecodeError, web.HTTPBadRequest):
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    if not isinstance(payload, dict):
+        return web.json_response({"error": "Invalid order"}, status=400)
+
+    order = {}
+    for field, max_length in ORDER_FIELD_LIMITS.items():
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.strip():
+            return web.json_response({"error": "Invalid order"}, status=400)
+        normalized = value.strip()
+        if len(normalized) > max_length:
+            return web.json_response({"error": "Invalid order"}, status=400)
+        order[field] = normalized
+
+    if _is_rate_limited(request):
+        return web.json_response(
+            {"error": "Too many requests"},
+            status=429,
+        )
+
+    message = "\n".join(
+        (
+            "Новая заявка с сайта ООО «ВиД»",
+            f"Имя: {order['name']}",
+            f"Контакт: {order['contact']}",
+            f"Направление: {order['service']}",
+            f"О заказе: {order['details']}",
+        )
+    )
+
+    try:
+        await request.app[TELEGRAM_BOT_KEY].send_message(
+            chat_id=admin_chat_id,
+            text=message,
+        )
+    except TelegramError:
+        logger.exception("Could not deliver website order to Telegram")
+        return web.json_response(
+            {"error": "Could not deliver order"},
+            status=502,
+        )
+
+    return web.json_response({"ok": True})
+
+
+async def start_order_api(application: Application) -> None:
+    order_app = create_order_app(
+        application.bot,
+        os.getenv("TELEGRAM_ADMIN_CHAT_ID", "").strip(),
+    )
+    runner = web.AppRunner(order_app)
+    await runner.setup()
+    try:
+        site = web.TCPSite(runner, "127.0.0.1", 8080)
+        await site.start()
+    except OSError:
+        await runner.cleanup()
+        raise
+    application.bot_data["order_api_runner"] = runner
+    logger.info("Order API listening on 127.0.0.1:8080")
+
+
+async def stop_order_api(application: Application) -> None:
+    runner = application.bot_data.pop("order_api_runner", None)
+    if runner is not None:
+        await runner.cleanup()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -94,7 +242,13 @@ def main() -> None:
     if not token or token == "replace_with_bot_token":
         raise SystemExit("Укажите TELEGRAM_BOT_TOKEN в корневом файле .env")
 
-    application = Application.builder().token(token).build()
+    application = (
+        Application.builder()
+        .token(token)
+        .post_init(start_order_api)
+        .post_shutdown(stop_order_api)
+        .build()
+    )
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("id", chat_id))
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))

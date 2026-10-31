@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="800" viewBox="0 0 1000 800" fill="none">
+  <defs>
+    <linearGradient id="background" x1="80" y1="0" x2="890" y2="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38413e"/>
+      <stop offset="1" stop-color="#171c1b"/>
+    </linearGradient>
+    <linearGradient id="sheet" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#dfe4dd"/>
+      <stop offset=".52" stop-color="#929d97"/>
+      <stop offset="1" stop-color="#cbd1cb"/>
+    </linearGradient>
+    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0V44" stroke="#fff" stroke-opacity=".04"/>
+    </pattern>
+    <filter id="glow" x="298" y="255" width="386" height="270" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+  <path fill="url(#background)" d="M0 0h1000v800H0z"/>
+  <path fill="url(#grid)" d="M0 0h1000v800H0z"/>
+  <path d="M93 652h814" stroke="#a2674f" stroke-opacity=".72" stroke-width="2"/>
+  <path d="M171 601 400 340h436L612 601H171Z" fill="#080b0a" fill-opacity=".4" stroke="#4d5752" stroke-width="3"/>
+  <path d="m225 565 202-224h379L604 565H225Z" fill="url(#sheet)" stroke="#38413d" stroke-width="8"/>
+  <path d="m427 341 69 70-70 77 80 77 69-78 74 78 73-81" stroke="#2b322e" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m496 411 70 77m10-1 75 78m-76-79 74-82m-143 83 70-77" stroke="#e6a06f" stroke-opacity=".2" stroke-width="25" filter="url(#glow)"/>
+  <path d="m496 411 70 77m10-1 75 78m-76-79 74-82m-143 83 70-77" stroke="#edaa74" stroke-width="4" stroke-linecap="round"/>
+  <path d="M566 286v166m-20-166h40m-20 166-15-26h30l-15 26Z" fill="#d2d8d1" stroke="#3d4641" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M565 448v104" stroke="#efa76f" stroke-width="3" stroke-dasharray="6 10"/>
+  <g fill="#e0e4dd" font-family="Arial,sans-serif">
+    <text x="72" y="78" font-size="16" letter-spacing="4">PRODUCTION / 03</text>
+    <text x="74" y="713" fill="#c98462" font-size="13" letter-spacing="3">LASER CUTTING / CNC</text>
+    <text x="906" y="713" text-anchor="end" fill="#b9c0ba" font-size="12" letter-spacing="2">SHEET METAL</text>
+  </g>
+  <path d="M73 94h88" stroke="#ba7658" stroke-width="2"/>
+</svg>
