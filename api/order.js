@@ -1,5 +1,7 @@
 const ORDER_ERROR = { error: 'Could not deliver order' }
-const CONFIG_ERROR = { error: 'Order delivery is not configured' }
+const CONFIG_ERROR = {
+  error: 'Order delivery is not configured. Check TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID.',
+}
 const FIELD_LIMITS = {
   name: 100,
   contact: 120,
@@ -44,7 +46,6 @@ function escapeHtml(value) {
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }
 
 function formatMoscowTime(date) {
@@ -62,15 +63,14 @@ function formatMoscowTime(date) {
 }
 
 function formatMessage(order) {
-  const phoneDigits = order.contact.replace(/[^0-9]/g, '')
   return [
-    '🔥 <b>Новая заявка vid64.ru</b>',
+    '🔔 <b>Новая заявка с сайта!</b>',
     '',
-    `<b>Имя:</b> ${escapeHtml(order.name)}`,
-    `<b>Телефон:</b> <a href="tel:+${phoneDigits}">${escapeHtml(order.contact)}</a>`,
-    `<b>Направление:</b> ${escapeHtml(order.service)}`,
-    `<b>Комментарий:</b> ${escapeHtml(order.details)}`,
-    `<b>Дата:</b> ${formatMoscowTime(new Date())}`,
+    `👤 <b>Имя:</b> ${escapeHtml(order.name)}`,
+    `📞 <b>Телефон:</b> ${escapeHtml(order.contact)}`,
+    `🧭 <b>Направление:</b> ${escapeHtml(order.service)}`,
+    `📝 <b>Задача:</b> ${escapeHtml(order.details)}`,
+    `📅 <b>Дата:</b> ${formatMoscowTime(new Date())}`,
   ].join('\n')
 }
 
@@ -111,6 +111,8 @@ export default async function orderHandler(req, res) {
       },
     )
     if (!telegramResponse.ok) {
+      const responseBody = await telegramResponse.text()
+      console.error('Telegram API response:', responseBody)
       throw new Error('Telegram rejected order')
     }
     const telegramResult = await telegramResponse.json()

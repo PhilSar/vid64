@@ -35,6 +35,7 @@ async function invokeHandler({
   token = 'test-token',
   chatId = '-100123',
   fetchImpl = async () => ({ ok: true, json: async () => ({ ok: true }) }),
+  onConsoleError = () => {},
 } = {}) {
   const previous = {
     fetch: globalThis.fetch,
@@ -45,7 +46,7 @@ async function invokeHandler({
   globalThis.fetch = fetchImpl
   process.env.TELEGRAM_BOT_TOKEN = token
   process.env.TELEGRAM_ADMIN_CHAT_ID = chatId
-  console.error = () => {}
+  console.error = onConsoleError
 
   const response = createResponse()
   try {
@@ -106,7 +107,7 @@ test('rejects malformed, non-object, missing, blank, and oversized order data', 
   assert.equal(fetchCalls, 0)
 })
 
-test('sends an escaped Telegram HTML message and returns delivery confirmation', async () => {
+test('sends escaped structured HTML and returns delivery confirmation', async () => {
   let request
   const response = await invokeHandler({
     body: {
@@ -130,11 +131,11 @@ test('sends an escaped Telegram HTML message and returns delivery confirmation',
   const telegramMessage = JSON.parse(request.options.body)
   assert.equal(telegramMessage.chat_id, '-100123')
   assert.equal(telegramMessage.parse_mode, 'HTML')
-  assert.match(telegramMessage.text, /🔥 <b>Новая заявка vid64\.ru<\/b>/)
-  assert.match(telegramMessage.text, /Алина &lt;b&gt;&quot;срочно&quot;&lt;\/b&gt;/)
-  assert.match(telegramMessage.text, /Изделия &amp; резка/)
-  assert.match(telegramMessage.text, /Лист &lt;script&gt;alert\(&quot;x&quot;\)&lt;\/script&gt;/)
-  assert.match(telegramMessage.text, /<a href="tel:\+79001234567">\+7 \(900\) 123-45-67<\/a>/)
+  assert.match(telegramMessage.text, /🔔 <b>Новая заявка с сайта!<\/b>/)
+  assert.match(telegramMessage.text, /👤 <b>Имя:<\/b> Алина &lt;b&gt;"срочно"&lt;\/b&gt;/)
+  assert.match(telegramMessage.text, /📞 <b>Телефон:<\/b> \+7 \(900\) 123-45-67/)
+  assert.match(telegramMessage.text, /🧭 <b>Направление:<\/b> Изделия &amp; резка/)
+  assert.match(telegramMessage.text, /📝 <b>Задача:<\/b> Лист &lt;script&gt;alert\("x"\)&lt;\/script&gt;/)
   assert.match(telegramMessage.text, /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2} МСК/)
   assert.equal(response.statusCode, 200)
   assert.deepEqual(response.body, { ok: true, telegram_delivered: true })
@@ -149,25 +150,33 @@ test('returns a generic error when Telegram credentials are missing', async () =
   for (const credentials of [{ token: '' }, { chatId: '' }]) {
     const response = await invokeHandler({ ...credentials, fetchImpl })
     assert.equal(response.statusCode, 500)
-    assert.deepEqual(response.body, { error: 'Order delivery is not configured' })
+    assert.match(response.body.error, /TELEGRAM_BOT_TOKEN/)
+    assert.match(response.body.error, /TELEGRAM_ADMIN_CHAT_ID/)
   }
   assert.equal(fetchCalls, 0)
 })
 
 test('does not expose Telegram errors or network failures to the client', async () => {
+  const loggedErrors = []
+  const telegramError = 'Bad Request: unsupported parse mode'
   for (const fetchImpl of [
     async () => ({
       ok: false,
-      json: async () => ({ ok: false, description: 'private upstream detail' }),
+      status: 400,
+      text: async () => telegramError,
     }),
     async () => ({ ok: true, json: async () => { throw new Error('invalid upstream JSON') } }),
     async () => { throw new Error('private network detail') },
   ]) {
-    const response = await invokeHandler({ fetchImpl })
+    const response = await invokeHandler({
+      fetchImpl,
+      onConsoleError: (...args) => loggedErrors.push(args),
+    })
     assert.equal(response.statusCode, 502)
     assert.deepEqual(response.body, { error: 'Could not deliver order' })
     assert.doesNotMatch(JSON.stringify(response.body), /private|invalid upstream/)
   }
+  assert.ok(loggedErrors.some((args) => args.includes(telegramError)))
 })
 
 test('Vite proxies the same-origin order endpoint to the local bot', () => {

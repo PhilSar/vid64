@@ -9,3 +9,4 @@ leads.csv
 .worktrees/
 .superpowers/
 .DS_Store
+.vercel
