@@ -52,3 +52,13 @@ test('exposes legal details for the confirmed Saratov company', () => {
 test('keeps unavailable direct contact methods empty', () => {
   assert.deepEqual(companyContacts, { phone: '', email: '', website: '' })
 })
+
+test('provides honest copy for an unpublished reviews section', () => {
+  assert.equal(homepageCopy.reviewsLabel, '05 / Отзывы')
+  assert.equal(homepageCopy.reviewsTitle, 'Отзывы клиентов')
+  assert.equal(
+    homepageCopy.reviewsEmptyState,
+    'Отзывы клиентов появятся здесь после публикации с их согласия.',
+  )
+  assert.equal(homepageCopy.contactLabel, '06 / Обсудим заказ')
+})

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vid64.ru/sitemap.xml

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowRight, ArrowUpRight, Layers, Menu, Wind, X } from 'lucide-react'
 import { getOrderStatusMessage, submitOrder } from './order-api.js'
 import { formatRussianPhone, isRussianPhoneComplete } from './phone-mask.js'
+import { privacyPolicySections } from './privacy-policy.js'
 import { companyContacts, companyDetails, homepageCopy, otherProducts, primaryServices, productionProcesses } from './site-content.js'
 
 function ChimneyMark() {
@@ -94,9 +95,51 @@ function App() {
   const [formStatus, setFormStatus] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isOrderSaved, setIsOrderSaved] = useState(false)
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false)
   const resetFormTimeout = useRef()
+  const privacyTriggerRef = useRef(null)
+  const privacyDialogRef = useRef(null)
 
   useEffect(() => () => clearTimeout(resetFormTimeout.current), [])
+
+  useEffect(() => {
+    if (!isPrivacyOpen) return
+
+    const dialog = privacyDialogRef.current
+    const previousBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialog?.querySelector('button')?.focus()
+
+    function handleDialogKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setIsPrivacyOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialog) return
+      const focusableElements = dialog.querySelectorAll(
+        'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      )
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement?.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement?.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleDialogKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleDialogKeyDown)
+      document.body.style.overflow = previousBodyOverflow
+      privacyTriggerRef.current?.focus()
+    }
+  }, [isPrivacyOpen])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -310,6 +353,16 @@ function App() {
           </dl>
         </section>
 
+        <section className="reviews section-pad" id="reviews" aria-labelledby="reviews-title">
+          <div className="section-heading">
+            <div>
+              <p className="section-label">{homepageCopy.reviewsLabel}</p>
+              <h2 id="reviews-title">{homepageCopy.reviewsTitle}</h2>
+            </div>
+          </div>
+          <p className="reviews-empty-state">{homepageCopy.reviewsEmptyState}</p>
+        </section>
+
         <section className="contact section-pad" id="contact" aria-labelledby="contact-title">
           <div className="contact-copy">
             <p className="section-label">{homepageCopy.contactLabel}</p>
@@ -364,7 +417,19 @@ function App() {
                 <p>{formStatus}</p>
               </div>
             )}
-            <p className="form-privacy">Данные формы передаются в Telegram для обработки заявки.</p>
+            <p className="form-privacy">
+              Нажимая кнопку, вы соглашаетесь с{' '}
+              <button
+                className="privacy-policy-trigger"
+                type="button"
+                ref={privacyTriggerRef}
+                aria-haspopup="dialog"
+                aria-controls="privacy-policy-dialog"
+                onClick={() => setIsPrivacyOpen(true)}
+              >
+                Политикой конфиденциальности
+              </button>
+            </p>
           </form>
         </section>
       </main>
@@ -375,6 +440,45 @@ function App() {
         <span className="copyright">ООО «ВиД» · Саратов</span>
         <a className="footer-up" href="#top">Наверх <ArrowUpRight size={15} /></a>
       </footer>
+
+      {isPrivacyOpen && (
+        <div
+          className="privacy-modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setIsPrivacyOpen(false)
+          }}
+        >
+          <section
+            className="privacy-modal"
+            id="privacy-policy-dialog"
+            ref={privacyDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="privacy-policy-title"
+            tabIndex="-1"
+          >
+            <header className="privacy-modal-header">
+              <h2 id="privacy-policy-title">Политика конфиденциальности</h2>
+              <button
+                className="privacy-modal-close"
+                type="button"
+                aria-label="Закрыть политику конфиденциальности"
+                onClick={() => setIsPrivacyOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </header>
+            <div className="privacy-modal-content">
+              {privacyPolicySections.map(({ title, paragraphs }) => (
+                <section className="privacy-policy-section" key={title}>
+                  <h3>{title}</h3>
+                  {paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                </section>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
     </>
   )
 }
